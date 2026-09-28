@@ -51,11 +51,16 @@ const series = {
  sp:{id:"SP500",name:"S&P 500 drawdown",unit:"%",kind:"sp"},
  dff:{id:"DFF",name:"Effective Fed Funds",unit:"%",kind:"dff"}
 };
+let localPayload=null;
 async function fred(id){
-  const u=`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}`;
-  const r=await fetch(u); if(!r.ok) throw new Error("HTTP "+r.status);
-  const t=await r.text(), lines=t.trim().split(/\r?\n/).slice(1);
-  return lines.map(x=>{const i=x.indexOf(",");return {date:x.slice(0,i),v:+x.slice(i+1)}}).filter(x=>Number.isFinite(x.v));
+  if(!localPayload){
+    const r=await fetch("./data/data.json?ts="+Date.now(), {cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    localPayload=await r.json();
+  }
+  const rows=localPayload.series?.[id];
+  if(!Array.isArray(rows) || !rows.length) throw new Error("Serie non disponibile: "+id);
+  return rows;
 }
 function classify(k,data){
  const last=data.at(-1)?.v;
@@ -82,12 +87,12 @@ async function loadAll(){
    const status=state==="green"?"Verde":state==="yellow"?"Attenzione":state==="red"?"Allarme":"Monitoraggio";
    cards.insertAdjacentHTML("beforeend",`<div class="card"><div class="row"><span class="label">${s.name}</span><span><i class="dot ${state}"></i>${status}</span></div><div class="value">${k==="sp"?"−":""}${d.v}${s.unit}</div><div class="small">${d.extra}</div></div>`);
   }catch(e){
-   cards.insertAdjacentHTML("beforeend",`<div class="card"><div class="label">${s.name}</div><div class="value">N/D</div><div class="small">Dati FRED non raggiungibili dal browser.</div></div>`);
+   cards.insertAdjacentHTML("beforeend",`<div class="card"><div class="label">${s.name}</div><div class="value">N/D</div><div class="small">Dati locali non disponibili: attendi il completamento della GitHub Action.</div></div>`);
   }
  }
  const pct=Math.min(100,reds/3*100); document.getElementById("meter").style.width=pct+"%";
  document.getElementById("summary").textContent=reds>=3?`${reds} spie rosse — approfondire`:`${reds} spie rosse`;
- document.getElementById("updated").textContent=`${loaded}/6 serie • ${new Date().toLocaleString("it-IT")}`;
+ document.getElementById("updated").textContent=`${loaded}/6 serie • dati ${localPayload?.generated_at ? new Date(localPayload.generated_at).toLocaleString("it-IT") : "N/D"}`;
 }
 loadAll();
 </script></body></html>
