@@ -1,9 +1,11 @@
 # Crisis Dashboard USA
 
-Dashboard statica per GitHub Pages. Legge dal browser alcune serie pubbliche FRED e applica le soglie concordate.
+Dashboard statica per GitHub Pages che monitora alcuni indicatori macro-finanziari USA.
 
-## Pubblicazione
-Il repository include una GitHub Action in `.github/workflows/pages.yml` che pubblica automaticamente il contenuto su GitHub Pages ad ogni push su `main`.
+Versione corrente: **v1.1.0**
+
+## Sito
+https://stefano-v.github.io/crisis-dashboard/
 
 ## Serie
 - BAMLH0A0HYM2 — US High Yield Option-Adjusted Spread
@@ -13,8 +15,17 @@ Il repository include una GitHub Action in `.github/workflows/pages.yml` che pub
 - SP500 — S&P 500
 - DFF — Effective Federal Funds Rate
 
-## Nota tecnica
-Il sito usa `fetch()` verso il CSV pubblico di FRED. Se FRED dovesse bloccare richieste cross-origin, la UI mostrerà N/D.
+## Aggiornamento dati
+La GitHub Action prova a scaricare i dati FRED lato server e genera `data/data.json`.
+Se il refresh live fallisce, il deploy continua usando l'ultimo dataset disponibile nel repository.
+
+## Interpretazione
+High-Yield spread, Sahm Rule, disoccupazione e drawdown S&P 500 usano soglie semaforiche.
+10Y–2Y ed Effective Fed Funds sono invece indicatori contestuali: vengono mostrati come **Monitoraggio**
+perché il loro livello assoluto, da solo, non determina uno stato verde/giallo/rosso affidabile.
+
+## Licenza
+MIT. Vedi [LICENSE](LICENSE).
 
 ## Disclaimer
 Strumento informativo di monitoraggio, non previsione certa e non consulenza finanziaria.
