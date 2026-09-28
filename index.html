@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Crisis Dashboard USA</title>
+<title>Crisis Dashboard USA</title>\n<link rel="icon" type="image/svg+xml" href="./favicon.svg">
 <style>
 :root{--bg:#0b1020;--card:#141b2d;--text:#edf2f7;--muted:#9aa6b2;--green:#22c55e;--yellow:#eab308;--red:#ef4444;--blue:#60a5fa}
 *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#09101e,#0b1020 35%);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
@@ -19,7 +19,7 @@ button{background:#24324f;color:white;border:1px solid #3a4b6c;padding:9px 12px;
 </style>
 </head>
 <body><div class="wrap">
-<div class="top"><div><h1>Crisis Dashboard USA</h1><div class="sub">Segnali di stress finanziario e recessivo • dati FRED quando disponibili</div></div>
+<div class="top"><div><h1>Crisis Dashboard USA</h1><div class="sub">Segnali di stress finanziario e recessivo • dati FRED quando disponibili • <span id="version">v1.1.0</span></div></div>
 <div><button onclick="loadAll()">Aggiorna dati</button> <span class="badge" id="updated">Caricamento…</span></div></div>
 <div class="grid" id="cards"></div>
 <div class="card wide" style="margin-top:14px">
@@ -33,16 +33,19 @@ button{background:#24324f;color:white;border:1px solid #3a4b6c;padding:9px 12px;
 <tr><td>Sahm Rule</td><td>&lt; 0,30</td><td>0,30–0,49</td><td>≥ 0,50</td></tr>
 <tr><td>Disoccupazione*</td><td>stabile</td><td>+0,3 pp</td><td>+0,5 pp</td></tr>
 <tr><td>S&P 500 drawdown</td><td>&lt; 10%</td><td>10–20%</td><td>≥ 20%</td></tr>
-<tr><td>10Y–2Y</td><td colspan="3">Segnale contestuale: interpretare con credito e occupazione</td></tr>
+<tr><td>10Y–2Y</td><td colspan="3">Segnale contestuale: nessuna soglia semaforica autonoma; interpretare con credito e occupazione</td></tr>
+<tr><td>Effective Fed Funds</td><td colspan="3">Segnale contestuale: il livello del tasso da solo non identifica una crisi; conta il contesto macro/credito</td></tr>
 </tbody></table>
 <div class="small">* Qui la variazione è calcolata rispetto al minimo degli ultimi 12 mesi disponibili.</div>
 </div>
 <footer>
 Fonti: Federal Reserve Economic Data (FRED), Federal Reserve Bank of St. Louis. Serie: BAMLH0A0HYM2, SAHMREALTIME, UNRATE, T10Y2Y, SP500, DFF.
-Questo dashboard è uno strumento di monitoraggio, non una previsione certa di recessione o crisi e non costituisce consulenza finanziaria.
+Questo dashboard è uno strumento di monitoraggio, non una previsione certa di recessione o crisi e non costituisce consulenza finanziaria.<br>
+Versione <b>v1.1.0</b> • <a href="https://github.com/stefano-v/crisis-dashboard" target="_blank" rel="noopener" style="color:#9ec5ff">Codice sorgente</a> • Licenza <a href="https://github.com/stefano-v/crisis-dashboard/blob/main/LICENSE" target="_blank" rel="noopener" style="color:#9ec5ff">MIT</a>.
 </footer>
 </div>
 <script>
+const APP_VERSION = "1.1.0";
 const series = {
  hy:{id:"BAMLH0A0HYM2",name:"High-Yield spread",unit:"%",kind:"hy"},
  sahm:{id:"SAHMREALTIME",name:"Sahm Rule",unit:" pp",kind:"sahm"},
@@ -94,5 +97,6 @@ async function loadAll(){
  document.getElementById("summary").textContent=reds>=3?`${reds} spie rosse — approfondire`:`${reds} spie rosse`;
  document.getElementById("updated").textContent=`${loaded}/6 serie • dati ${localPayload?.generated_at ? new Date(localPayload.generated_at).toLocaleString("it-IT") : "N/D"}`;
 }
+document.getElementById("version").textContent = "v"+APP_VERSION;
 loadAll();
 </script></body></html>
