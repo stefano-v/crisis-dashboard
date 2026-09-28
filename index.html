@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crisis Dashboard USA</title>
+<style>
+:root{--bg:#0b1020;--card:#141b2d;--text:#edf2f7;--muted:#9aa6b2;--green:#22c55e;--yellow:#eab308;--red:#ef4444;--blue:#60a5fa}
+*{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#09101e,#0b1020 35%);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:1180px;margin:auto;padding:28px 18px 48px}.top{display:flex;gap:18px;justify-content:space-between;align-items:flex-end;flex-wrap:wrap}
+h1{font-size:30px;margin:0}.sub{color:var(--muted);margin-top:7px}.badge{padding:8px 12px;border-radius:999px;background:#1b253b;color:#cbd5e1}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px}.card{background:rgba(20,27,45,.94);border:1px solid #25314b;border-radius:16px;padding:17px;box-shadow:0 10px 30px #0003}
+.label{color:var(--muted);font-size:13px}.value{font-size:29px;font-weight:750;margin:8px 0}.row{display:flex;justify-content:space-between;gap:10px;align-items:center}.dot{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:7px}.green{background:var(--green)}.yellow{background:var(--yellow)}.red{background:var(--red)}.neutral{background:#64748b}
+.small{font-size:12px;color:var(--muted)} .wide{grid-column:span 3}.meter{height:10px;background:#273249;border-radius:99px;overflow:hidden;margin:12px 0}.fill{height:100%;background:var(--blue);width:0}
+table{width:100%;border-collapse:collapse;margin-top:8px}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #273249}th{color:#aab5c4;font-size:12px}
+footer{color:var(--muted);font-size:12px;margin-top:20px;line-height:1.5}
+button{background:#24324f;color:white;border:1px solid #3a4b6c;padding:9px 12px;border-radius:10px;cursor:pointer}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.wide{grid-column:span 1}}
+</style>
+</head>
+<body><div class="wrap">
+<div class="top"><div><h1>Crisis Dashboard USA</h1><div class="sub">Segnali di stress finanziario e recessivo • dati FRED quando disponibili</div></div>
+<div><button onclick="loadAll()">Aggiorna dati</button> <span class="badge" id="updated">Caricamento…</span></div></div>
+<div class="grid" id="cards"></div>
+<div class="card wide" style="margin-top:14px">
+<div class="row"><div><b>Indicatore complessivo</b><div class="small">Regola operativa: approfondire con ≥3 spie rosse, soprattutto credito + occupazione.</div></div><b id="summary">—</b></div>
+<div class="meter"><div class="fill" id="meter"></div></div>
+</div>
+<div class="card wide" style="margin-top:14px">
+<b>Soglie concordate</b>
+<table><thead><tr><th>Indicatore</th><th>Verde</th><th>Giallo</th><th>Rosso</th></tr></thead><tbody>
+<tr><td>High-Yield spread</td><td>&lt; 4%</td><td>4–5%</td><td>&gt; 5%</td></tr>
+<tr><td>Sahm Rule</td><td>&lt; 0,30</td><td>0,30–0,49</td><td>≥ 0,50</td></tr>
+<tr><td>Disoccupazione*</td><td>stabile</td><td>+0,3 pp</td><td>+0,5 pp</td></tr>
+<tr><td>S&P 500 drawdown</td><td>&lt; 10%</td><td>10–20%</td><td>≥ 20%</td></tr>
+<tr><td>10Y–2Y</td><td colspan="3">Segnale contestuale: interpretare con credito e occupazione</td></tr>
+</tbody></table>
+<div class="small">* Qui la variazione è calcolata rispetto al minimo degli ultimi 12 mesi disponibili.</div>
+</div>
+<footer>
+Fonti: Federal Reserve Economic Data (FRED), Federal Reserve Bank of St. Louis. Serie: BAMLH0A0HYM2, SAHMREALTIME, UNRATE, T10Y2Y, SP500, DFF.
+Questo dashboard è uno strumento di monitoraggio, non una previsione certa di recessione o crisi e non costituisce consulenza finanziaria.
+</footer>
+</div>
+<script>
+const series = {
+ hy:{id:"BAMLH0A0HYM2",name:"High-Yield spread",unit:"%",kind:"hy"},
+ sahm:{id:"SAHMREALTIME",name:"Sahm Rule",unit:" pp",kind:"sahm"},
+ unrate:{id:"UNRATE",name:"Disoccupazione",unit:"%",kind:"unrate"},
+ curve:{id:"T10Y2Y",name:"Treasury 10Y − 2Y",unit:" pp",kind:"curve"},
+ sp:{id:"SP500",name:"S&P 500 drawdown",unit:"%",kind:"sp"},
+ dff:{id:"DFF",name:"Effective Fed Funds",unit:"%",kind:"dff"}
+};
+async function fred(id){
+  const u=`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}`;
+  const r=await fetch(u); if(!r.ok) throw new Error("HTTP "+r.status);
+  const t=await r.text(), lines=t.trim().split(/\r?\n/).slice(1);
+  return lines.map(x=>{const i=x.indexOf(",");return {date:x.slice(0,i),v:+x.slice(i+1)}}).filter(x=>Number.isFinite(x.v));
+}
+function classify(k,data){
+ const last=data.at(-1)?.v;
+ if(k==="hy") return last>5?"red":last>=4?"yellow":"green";
+ if(k==="sahm") return last>=.5?"red":last>=.3?"yellow":"green";
+ if(k==="unrate"){const recent=data.slice(-12); const min=Math.min(...recent.map(x=>x.v)); const d=last-min; return d>=.5?"red":d>=.3?"yellow":"green"}
+ if(k==="sp"){const recent=data.slice(-756); const peak=Math.max(...recent.map(x=>x.v)); const dd=(peak-last)/peak*100; return dd>=20?"red":dd>=10?"yellow":"green"}
+ return "neutral";
+}
+function display(k,data){
+ const last=data.at(-1)?.v;
+ if(k==="sp"){const recent=data.slice(-756); const peak=Math.max(...recent.map(x=>x.v)); return {v:((peak-last)/peak*100).toFixed(1),extra:`S&P ${last.toFixed(2)} • max finestra ${peak.toFixed(2)}`}}
+ if(k==="unrate"){const recent=data.slice(-12); const min=Math.min(...recent.map(x=>x.v)); return {v:last.toFixed(1),extra:`+${(last-min).toFixed(1)} pp dal minimo 12 mesi`}}
+ return {v:last.toFixed(2),extra:`Ultimo dato: ${data.at(-1).date}`};
+}
+async function loadAll(){
+ document.getElementById("updated").textContent="Aggiornamento…";
+ const cards=document.getElementById("cards"); cards.innerHTML="";
+ let reds=0, loaded=0;
+ for(const [k,s] of Object.entries(series)){
+  try{
+   const data=await fred(s.id), state=classify(k,data), d=display(k,data);
+   if(state==="red") reds++; loaded++;
+   const status=state==="green"?"Verde":state==="yellow"?"Attenzione":state==="red"?"Allarme":"Monitoraggio";
+   cards.insertAdjacentHTML("beforeend",`<div class="card"><div class="row"><span class="label">${s.name}</span><span><i class="dot ${state}"></i>${status}</span></div><div class="value">${k==="sp"?"−":""}${d.v}${s.unit}</div><div class="small">${d.extra}</div></div>`);
+  }catch(e){
+   cards.insertAdjacentHTML("beforeend",`<div class="card"><div class="label">${s.name}</div><div class="value">N/D</div><div class="small">Dati FRED non raggiungibili dal browser.</div></div>`);
+  }
+ }
+ const pct=Math.min(100,reds/3*100); document.getElementById("meter").style.width=pct+"%";
+ document.getElementById("summary").textContent=reds>=3?`${reds} spie rosse — approfondire`:`${reds} spie rosse`;
+ document.getElementById("updated").textContent=`${loaded}/6 serie • ${new Date().toLocaleString("it-IT")}`;
+}
+loadAll();
+</script></body></html>
