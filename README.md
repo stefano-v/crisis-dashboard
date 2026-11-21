@@ -2,12 +2,23 @@
 
 Dashboard statica per GitHub Pages che monitora alcuni indicatori macro-finanziari USA.
 
-Versione corrente: **v1.1.1**
+Versione corrente: **v1.2.0**
 
 ## Sito
 https://stefano-v.github.io/crisis-dashboard/
 
-## Serie
+## Movimenti azionari
+La dashboard mostra ora S&P 500, Nasdaq Composite e Dow Jones con:
+- livello più recente;
+- variazione a 1 giorno;
+- variazione a 5 giorni;
+- variazione a circa 1 mese (21 sedute);
+- performance da inizio anno (YTD);
+- sparkline degli ultimi ~6 mesi.
+
+I dati di mercato vengono richiesti da Yahoo Finance durante la GitHub Action e salvati nello stesso dataset statico della dashboard. In caso di errore, il deploy mantiene l'ultimo dataset disponibile.
+
+## Serie macro-finanziarie
 - BAMLH0A0HYM2 — US High Yield Option-Adjusted Spread
 - SAHMREALTIME — Sahm Rule Recession Indicator
 - UNRATE — Unemployment Rate

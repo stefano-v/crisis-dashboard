@@ -17,17 +17,30 @@ h1{font-size:30px;margin:0}.sub{color:var(--muted);margin-top:7px}.badge{padding
 table{width:100%;border-collapse:collapse;margin-top:8px}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #273249}th{color:#aab5c4;font-size:12px}
 footer{color:var(--muted);font-size:12px;margin-top:20px;line-height:1.5}
 button{background:#24324f;color:white;border:1px solid #3a4b6c;padding:9px 12px;border-radius:10px;cursor:pointer}
-@media(max-width:800px){.grid{grid-template-columns:1fr}.wide{grid-column:span 1}}
+.section-title{margin:26px 0 10px;font-size:19px}
+.market-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.market-card{background:rgba(20,27,45,.94);border:1px solid #25314b;border-radius:16px;padding:17px}
+.market-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.market-name{font-weight:700}.market-symbol{font-size:12px;color:var(--muted)}
+.market-level{font-size:26px;font-weight:750;margin:8px 0 4px}.market-moves{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.move{background:#10182a;border:1px solid #25314b;border-radius:10px;padding:8px}.move b{display:block;margin-top:3px}.pos{color:#4ade80}.neg{color:#f87171}.flat{color:#cbd5e1}
+.spark{width:100%;height:74px;margin-top:12px;display:block}.spark line{stroke:#334155;stroke-width:1}.spark polyline{fill:none;stroke:#60a5fa;stroke-width:2.3;vector-effect:non-scaling-stroke}
+.market-note{margin-top:10px;color:var(--muted);font-size:12px}
+@media(max-width:800px){.grid,.market-grid{grid-template-columns:1fr}.wide{grid-column:span 1}.market-moves{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body><div class="wrap">
-<div class="top"><div><h1>Crisis Dashboard USA</h1><div class="sub">Segnali di stress finanziario e recessivo • dati FRED quando disponibili • <span id="version">v1.1.1</span></div></div>
+<div class="top"><div><h1>Crisis Dashboard USA</h1><div class="sub">Segnali di stress finanziario e recessivo • dati FRED quando disponibili • <span id="version">v1.2.0</span></div></div>
 <div><button onclick="loadAll()">Aggiorna dati</button> <span class="badge" id="updated">Caricamento…</span></div></div>
 <div class="grid" id="cards"></div>
 <div class="card wide" style="margin-top:14px">
 <div class="row"><div><b>Indicatore complessivo</b><div class="small">Regola operativa: approfondire con ≥3 spie rosse, soprattutto credito + occupazione.</div></div><b id="summary">—</b></div>
 <div class="meter"><div class="fill" id="meter"></div></div>
 </div>
+
+<h2 class="section-title">Movimenti azionari</h2>
+<div class="market-grid" id="marketCards"></div>
+<div class="market-note">Performance calcolate sui livelli di chiusura disponibili. Il movimento a 1 giorno, 5 giorni, 1 mese e da inizio anno serve a distinguere una correzione di mercato da uno stress più ampio del credito.</div>
+
 <div class="card wide" style="margin-top:14px">
 <b>Soglie concordate</b>
 <table><thead><tr><th>Indicatore</th><th>Verde</th><th>Giallo</th><th>Rosso</th></tr></thead><tbody>
@@ -43,11 +56,11 @@ button{background:#24324f;color:white;border:1px solid #3a4b6c;padding:9px 12px;
 <footer>
 Fonti: Federal Reserve Economic Data (FRED), Federal Reserve Bank of St. Louis. Serie: BAMLH0A0HYM2, SAHMREALTIME, UNRATE, T10Y2Y, SP500, DFF.
 Questo dashboard è uno strumento di monitoraggio, non una previsione certa di recessione o crisi e non costituisce consulenza finanziaria.<br>
-Versione <b>v1.1.1</b> • <a href="https://github.com/stefano-v/crisis-dashboard" target="_blank" rel="noopener" style="color:#9ec5ff">Codice sorgente</a> • Licenza <a href="https://github.com/stefano-v/crisis-dashboard/blob/main/LICENSE" target="_blank" rel="noopener" style="color:#9ec5ff">MIT</a>.
+Versione <b>v1.2.0</b> • <a href="https://github.com/stefano-v/crisis-dashboard" target="_blank" rel="noopener" style="color:#9ec5ff">Codice sorgente</a> • Licenza <a href="https://github.com/stefano-v/crisis-dashboard/blob/main/LICENSE" target="_blank" rel="noopener" style="color:#9ec5ff">MIT</a>.
 </footer>
 </div>
 <script>
-const APP_VERSION = "1.1.1";
+const APP_VERSION = "1.2.0";
 const series = {
  hy:{id:"BAMLH0A0HYM2",name:"High-Yield spread",unit:"%",kind:"hy"},
  sahm:{id:"SAHMREALTIME",name:"Sahm Rule",unit:" pp",kind:"sahm"},
@@ -56,16 +69,32 @@ const series = {
  sp:{id:"SP500",name:"S&P 500 drawdown",unit:"%",kind:"sp"},
  dff:{id:"DFF",name:"Effective Fed Funds",unit:"%",kind:"dff"}
 };
+const markets = [
+ {id:"^GSPC",name:"S&P 500",symbol:"SPX"},
+ {id:"^IXIC",name:"Nasdaq Composite",symbol:"IXIC"},
+ {id:"^DJI",name:"Dow Jones",symbol:"DJI"}
+];
 let localPayload=null;
+
+async function payload(){
+ if(!localPayload){
+  const r=await fetch("./data/data.json?ts="+Date.now(),{cache:"no-store"});
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  localPayload=await r.json();
+ }
+ return localPayload;
+}
 async function fred(id){
-  if(!localPayload){
-    const r=await fetch("./data/data.json?ts="+Date.now(), {cache:"no-store"});
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    localPayload=await r.json();
-  }
-  const rows=localPayload.series?.[id];
-  if(!Array.isArray(rows) || !rows.length) throw new Error("Serie non disponibile: "+id);
-  return rows;
+ const p=await payload();
+ const rows=p.series?.[id];
+ if(!Array.isArray(rows)||!rows.length) throw new Error("Serie non disponibile: "+id);
+ return rows;
+}
+async function market(id){
+ const p=await payload();
+ const rows=p.market?.[id] || (id==="^GSPC" ? p.series?.SP500 : null);
+ if(!Array.isArray(rows)||!rows.length) throw new Error("Mercato non disponibile: "+id);
+ return rows.filter(x=>Number.isFinite(x.v));
 }
 function classify(k,data){
  const last=data.at(-1)?.v;
@@ -81,8 +110,60 @@ function display(k,data){
  if(k==="unrate"){const recent=data.slice(-12); const min=Math.min(...recent.map(x=>x.v)); return {v:last.toFixed(1),extra:`+${(last-min).toFixed(1)} pp dal minimo 12 mesi`}}
  return {v:last.toFixed(2),extra:`Ultimo dato: ${data.at(-1).date}`};
 }
+function changePct(data, back){
+ if(!data.length) return null;
+ const last=data.at(-1).v;
+ const prev=data[Math.max(0,data.length-1-back)]?.v;
+ return prev ? (last/prev-1)*100 : null;
+}
+function ytdPct(data){
+ if(!data.length) return null;
+ const last=data.at(-1), year=last.date.slice(0,4);
+ const first=data.find(x=>x.date.startsWith(year));
+ return first?.v ? (last.v/first.v-1)*100 : null;
+}
+function fmtPct(v){
+ if(v===null||!Number.isFinite(v)) return "N/D";
+ const s=v>0?"+":"";
+ return s+v.toFixed(2)+"%";
+}
+function moveClass(v){return v>0.05?"pos":v<-0.05?"neg":"flat"}
+function sparkline(data){
+ const pts=data.slice(-126);
+ if(pts.length<2) return "";
+ const vals=pts.map(x=>x.v), min=Math.min(...vals), max=Math.max(...vals), span=max-min||1;
+ const points=vals.map((v,i)=>{
+  const x=(i/(vals.length-1))*100, y=64-((v-min)/span)*54;
+  return x.toFixed(2)+","+y.toFixed(2);
+ }).join(" ");
+ return `<svg class="spark" viewBox="0 0 100 70" preserveAspectRatio="none" aria-label="Andamento ultimi sei mesi"><line x1="0" y1="64" x2="100" y2="64"></line><polyline points="${points}"></polyline></svg>`;
+}
+async function renderMarkets(){
+ const root=document.getElementById("marketCards"); root.innerHTML="";
+ for(const m of markets){
+  try{
+   const data=await market(m.id);
+   const last=data.at(-1);
+   const d1=changePct(data,1), d5=changePct(data,5), d21=changePct(data,21), ytd=ytdPct(data);
+   root.insertAdjacentHTML("beforeend",`<div class="market-card">
+    <div class="market-head"><div><div class="market-name">${m.name}</div><div class="market-symbol">${m.symbol}</div></div><div class="small">${last.date}</div></div>
+    <div class="market-level">${last.v.toLocaleString("it-IT",{maximumFractionDigits:2})}</div>
+    <div class="market-moves">
+      <div class="move"><span class="small">1 giorno</span><b class="${moveClass(d1)}">${fmtPct(d1)}</b></div>
+      <div class="move"><span class="small">5 giorni</span><b class="${moveClass(d5)}">${fmtPct(d5)}</b></div>
+      <div class="move"><span class="small">1 mese</span><b class="${moveClass(d21)}">${fmtPct(d21)}</b></div>
+      <div class="move"><span class="small">YTD</span><b class="${moveClass(ytd)}">${fmtPct(ytd)}</b></div>
+    </div>
+    ${sparkline(data)}
+   </div>`);
+  }catch(e){
+   root.insertAdjacentHTML("beforeend",`<div class="market-card"><div class="market-name">${m.name}</div><div class="market-level">N/D</div><div class="small">Storico azionario non ancora disponibile.</div></div>`);
+  }
+ }
+}
 async function loadAll(){
  document.getElementById("updated").textContent="Aggiornamento…";
+ localPayload=null;
  const cards=document.getElementById("cards"); cards.innerHTML="";
  let reds=0, loaded=0;
  for(const [k,s] of Object.entries(series)){
@@ -95,10 +176,11 @@ async function loadAll(){
    cards.insertAdjacentHTML("beforeend",`<div class="card"><div class="label">${s.name}</div><div class="value">N/D</div><div class="small">Dati locali non disponibili: attendi il completamento della GitHub Action.</div></div>`);
   }
  }
+ await renderMarkets();
  const pct=Math.min(100,reds/3*100); document.getElementById("meter").style.width=pct+"%";
  document.getElementById("summary").textContent=reds>=3?`${reds} spie rosse — approfondire`:`${reds} spie rosse`;
  document.getElementById("updated").textContent=`${loaded}/6 serie • dati ${localPayload?.generated_at ? new Date(localPayload.generated_at).toLocaleString("it-IT") : "N/D"}`;
 }
-document.getElementById("version").textContent = "v"+APP_VERSION;
+document.getElementById("version").textContent="v"+APP_VERSION;
 loadAll();
 </script></body></html>
