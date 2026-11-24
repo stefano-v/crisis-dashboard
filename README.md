@@ -2,7 +2,7 @@
 
 Dashboard statica per GitHub Pages che monitora alcuni indicatori macro-finanziari USA.
 
-Versione corrente: **v1.2.0**
+Versione corrente: **v1.2.1**
 
 ## Sito
 https://stefano-v.github.io/crisis-dashboard/
